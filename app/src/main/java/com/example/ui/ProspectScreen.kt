@@ -4740,3 +4740,12 @@ suspend fun verifyOtpTwilio(to: String, code: String): Boolean = withContext(Dis
         }
     } catch (e: Exception) { false }
 }
+data class ReniecResult(
+    val success: Boolean,
+    val nombreCompleto: String?,
+    val direccion: String?,
+    val departamento: String?,
+    val provincia: String?,
+    val distrito: String?,
+    val error: String?
+)
