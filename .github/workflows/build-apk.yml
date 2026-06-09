@@ -34,7 +34,7 @@ jobs:
       - name: Build Debug APK
         run: |
           export PATH=$PATH:/opt/gradle/gradle-8.7/bin
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug -Djava.awt.headless=true --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
