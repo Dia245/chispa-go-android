@@ -2234,9 +2234,10 @@ fun ProspectScreen(
                                             isPhoneValidating = true
                                             phoneOtpError = null
                                             uploadScope.launch {
-                                                kotlinx.coroutines.delay(1000) // visual mock latency
-                                                isPhoneValidating = false
-                                                showPhoneOtpField = true
+                                             val ok = sendOtpTwilio("+51$cellphone", "sms")
+                                             isPhoneValidating = false
+                                             if (ok) showPhoneOtpField = true
+                                             else phoneOtpError = "No se pudo enviar el SMS."
                                             }
                                         }
                                     },
@@ -2252,7 +2253,7 @@ fun ProspectScreen(
                                             strokeWidth = 2.dp
                                         )
                                     } else {
-                                        Text("Validar por WhatsApp", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Text("Validar por SMS", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -2274,13 +2275,13 @@ fun ProspectScreen(
                                         onValueChange = { input ->
                                             val filtered = input.filter { it.isDigit() }.take(6)
                                             phoneOtpCode = filtered
-                                            if (filtered == "123456") {
-                                                isPhoneVerified = true
-                                                showPhoneOtpField = false
-                                                phoneOtpError = null
-                                            } else if (filtered.length == 6) {
-                                                phoneOtpError = "Código incorrecto. Ingresa el bypass '123456' para la demo."
+                                          if (filtered.length == 6) {
+                                            uploadScope.launch {
+                                                val ok = verifyOtpTwilio("+51$cellphone", filtered)
+                                                if (ok) { isPhoneVerified = true; showPhoneOtpField = false; phoneOtpError = null }
+                                                else phoneOtpError = "Código incorrecto."
                                             }
+                                        }
                                         },
                                         label = { Text("Código OTP enviado a tu WhatsApp (Ej: 123456)", color = Color.Gray, fontSize = 11.sp) },
                                         placeholder = { Text("Ingresa '123456'", color = Color.Gray, fontSize = 11.sp) },
@@ -2341,14 +2342,11 @@ fun ProspectScreen(
                                         if (email.contains("@")) {
                                             isEmailValidating = true
                                             emailOtpError = null
-                                            val generatedCode = (100000..999999).random().toString()
-                                            generatedEmailOtp = generatedCode
-                                            uploadScope.launch {
-                                                kotlinx.coroutines.delay(1000)
+                                       uploadScope.launch {
+                                                val ok = sendOtpTwilio(email, "email")
                                                 isEmailValidating = false
-                                                showEmailOtpField = true
-                                                emailOtpError = ""
-                                                android.widget.Toast.makeText(context, "Tu código de verificación es: $generatedCode", android.widget.Toast.LENGTH_LONG).show()
+                                                if (ok) { showEmailOtpField = true; emailOtpError = "" }
+                                                else emailOtpError = "No se pudo enviar el código."
                                             }
                                         }
                                     },
@@ -2433,13 +2431,13 @@ fun ProspectScreen(
                                             onValueChange = { input ->
                                                 val filtered = input.filter { it.isDigit() }.take(6)
                                                 emailOtpCode = filtered
-                                                if (filtered == "123456" || filtered == generatedEmailOtp) {
-                                                    isEmailVerified = true
-                                                    showEmailOtpField = false
-                                                    emailOtpError = null
-                                                } else if (filtered.length == 6) {
-                                                    emailOtpError = "Código incorrecto. Revisa tu email o ingresa '123456'."
+                                              if (filtered.length == 6) {
+                                                uploadScope.launch {
+                                                    val ok = verifyOtpTwilio(email, filtered)
+                                                    if (ok) { isEmailVerified = true; showEmailOtpField = false; emailOtpError = null }
+                                                    else emailOtpError = "Código incorrecto."
                                                 }
+                                            }
                                             },
                                             label = { Text("Ingresa el código de 6 dígitos", color = Color.Gray, fontSize = 11.sp) },
                                             placeholder = { Text("Ej. $generatedEmailOtp (Bypass: 123456)", color = Color.Gray, fontSize = 11.sp) },
@@ -4712,13 +4710,33 @@ suspend fun queryReniecDni(dni: String): ReniecResult = withContext(Dispatchers.
     }
 }
 
-data class ReniecResult(
-    val success: Boolean,
-    val nombreCompleto: String?,
-    val direccion: String?,
-    val departamento: String?,
-    val provincia: String?,
-    val distrito: String?,
-    val error: String?
-)
+suspend fun sendOtpTwilio(to: String, channel: String): Boolean = withContext(Dispatchers.IO) {
+    try {
+        val client = OkHttpClient()
+        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+        val json = JSONObject().apply { put("to", to); put("channel", channel) }
+        val body = okhttp3.RequestBody.create(mediaType, json.toString())
+        val request = Request.Builder()
+            .url("https://dia245-blame.vercel.app/api/send-otp")
+            .post(body).addHeader("Content-Type", "application/json").build()
+        client.newCall(request).execute().use { response ->
+            JSONObject(response.body?.string() ?: "{}").optBoolean("ok", false)
+        }
+    } catch (e: Exception) { false }
+}
 
+suspend fun verifyOtpTwilio(to: String, code: String): Boolean = withContext(Dispatchers.IO) {
+    try {
+        val client = OkHttpClient()
+        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+        val json = JSONObject().apply { put("to", to); put("code", code) }
+        val body = okhttp3.RequestBody.create(mediaType, json.toString())
+        val request = Request.Builder()
+            .url("https://dia245-blame.vercel.app/api/verify-otp")
+            .post(body).addHeader("Content-Type", "application/json").build()
+        client.newCall(request).execute().use { response ->
+            val root = JSONObject(response.body?.string() ?: "{}")
+            root.optBoolean("ok", false) && root.optBoolean("verified", false)
+        }
+    } catch (e: Exception) { false }
+}
