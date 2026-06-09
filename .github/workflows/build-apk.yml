@@ -17,11 +17,11 @@ jobs:
       - name: Create required files
         run: |
           touch .env
-          touch .env.example
           touch local.properties
           echo "sdk.dir=$ANDROID_HOME" >> local.properties
           echo "org.gradle.jvmargs=-Xmx2048m -Djava.awt.headless=true" >> gradle.properties
           echo "ksp.incremental=false" >> gradle.properties
+          echo "GEMINI_API_KEY=placeholder" >> .env.example
 
       - name: Install Gradle
         run: |
