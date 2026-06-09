@@ -16,6 +16,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Create .env file
+        run: cp .env.example .env || touch .env
+
       - name: Install Gradle
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
