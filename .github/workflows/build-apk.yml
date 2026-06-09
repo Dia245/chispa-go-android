@@ -16,8 +16,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create .env file
-        run: cp .env.example .env || touch .env
+      - name: Create required files
+        run: |
+          touch .env
+          touch local.properties
+          echo "sdk.dir=$ANDROID_HOME" >> local.properties
 
       - name: Install Gradle
         run: |
