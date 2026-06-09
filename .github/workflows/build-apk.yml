@@ -15,10 +15,11 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
+          
       - name: Create required files
         run: |
           touch .env
+          touch .env.example
           touch local.properties
           echo "sdk.dir=$ANDROID_HOME" >> local.properties
 
